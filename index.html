@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профессиональный Анализатор iPhone</title>
+    
+    <meta name="apple-mobile-web-app-title" content="Apple Проверка">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --muted: #86868b;
+            --blue: #0071e3;
+            --red: #ff3b30;
+            --green: #34c759;
+            --yellow: #ffcc00;
+            --gray: #e5e5ea;
+            --border: #d2d2d7;
+            --purple: #bf5af2;
+        }
+
+        body.dark-theme {
+            --bg: #000000;
+            --card: #1c1c1e;
+            --text: #f5f5f7;
+            --muted: #98989d;
+            --gray: #3a3a3c;
+            --border: #38383a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 20px; padding-bottom: 160px; transition: background 0.3s, color 0.3s; }
+        
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000000; display: flex; align-items: center; justify-content: center;
+            z-index: 9999; animation: lightUp 1.2s ease-in-out forwards;
+            pointer-events: none;
+        }
+        @keyframes lightUp {
+            0% { background: #000000; opacity: 1; }
+            70% { background: var(--bg); opacity: 1; }
+            100% { background: var(--bg); opacity: 0; visibility: hidden; }
+        }
+
+        #mode-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 5000; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px; text-align: center;
+            transition: opacity 0.5s ease;
+        }
+        .mode-card { background: var(--card); padding: 30px; border-radius: 20px; max-width: 400px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .mode-btn { background: var(--blue); color: #fff; border: none; padding: 15px; border-radius: 12px; font-size: 18px; font-weight: 600; width: 100%; margin-top: 15px; cursor: pointer; transition: 0.2s; }
+        .mode-btn:hover { opacity: 0.9; }
+
+        .container { max-width: 600px; margin: 0 auto; transition: opacity 0.4s ease; margin-top: 20px; display: none; }
+        h1 { text-align: center; margin-bottom: 5px; font-size: 26px; }
+        .subtitle { text-align: center; color: var(--muted); margin-bottom: 25px; font-size: 14px; }
+        
+        .progress-container {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border);
+            padding: 12px 20px; z-index: 1100; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        }
+        .progress-text { font-size: 13px; font-weight: 600; color: var(--muted); }
+        .progress-track {
+            width: 100%; max-width: 560px; height: 8px; background: var(--gray); border-radius: 4px; position: relative; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: var(--green); border-radius: 4px; width: 0%; transition: width 0.3s ease;
+        }
+
+        .settings-btn {
+            position: fixed; top: 20px; right: 20px; background: var(--card); border: 1px solid var(--border);
+            color: var(--text); border-radius: 50%; width: 44px; height: 44px; font-size: 20px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000;
+            transition: transform 0.3s;
+        }
+        .settings-btn:hover { transform: rotate(45deg); }
+
+        #settings-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            z-index: 6000; display: none; align-items: center; justify-content: center; padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        .settings-content { background: var(--card); padding: 25px; border-radius: 20px; width: 100%; max-width: 400px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); }
+        .settings-close { background: var(--blue); color: #fff; border: none; padding: 10px; width: 100%; border-radius: 10px; margin-top: 20px; font-weight: 600; cursor: pointer; }
+
+        .card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); transition: background 0.3s, border-color 0.3s; border: 2px solid transparent; }
+        .card.invalid { border-color: var(--red) !important; animation: shake 0.3s ease-in-out; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        h3 { font-size: 17px; margin-bottom: 4px; }
+        .hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.4; }
+        .section-label { font-size: 12px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: bold; letter-spacing: 0.5px; margin-top: 10px;}
+
+        .model-header { display: flex; gap: 10px; align-items: flex-start; }
+        select.model-select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; background: var(--bg); color: var(--text); outline: none; }
+        select.model-select.invalid-input { border-color: var(--red); }
+
+        .accordion-select { flex: 1; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); overflow: hidden; }
+        .accordion-select.invalid-input { border-color: var(--red); }
+        .accordion-header { padding: 12px; font-size: 16px; color: var(--text); cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .accordion-header::after { content: "▼"; font-size: 12px; color: var(--muted); transition: transform 0.3s; }
+        .accordion-select.open .accordion-header::after { transform: rotate(180deg); }
+        .accordion-body { display: none; max-height: 320px; overflow-y: auto; border-top: 1px solid var(--border); background: var(--card); }
+        .accordion-select.open .accordion-body { display: block; }
+        .line-group { border-bottom: 1px solid var(--border); }
+        .line-group:last-child { border-bottom: none; }
+        .line-title { padding: 10px 14px; font-size: 14px; font-weight: 600; background: var(--bg); color: var(--text); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .line-title::after { content: "+"; font-size: 16px; color: var(--muted); }
+        .line-group.expanded .line-title::after { content: "−"; }
+        .line-models { display: none; padding: 5px 0; background: var(--card); }
+        .line-group.expanded .line-models { display: block; }
+        .model-item { padding: 10px 20px; font-size: 14px; color: var(--text); cursor: pointer; transition: background 0.2s; }
+        .model-item:hover { background: var(--bg); color: var(--blue); }
+        .model-item.selected { font-weight: bold; color: var(--blue); }
+
+        .reset-btn { background: var(--card); border: 2px solid var(--blue); color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; transition: 0.2s; }
+        .reset-btn:hover { background: var(--bg); }
+
+        .toggle-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .toggle-group label { flex: 1; text-align: center; background: var(--bg); padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px; border: 2px solid transparent; transition: 0.2s; font-weight: 500; }
+        .toggle-group input[type="radio"] { display: none; }
+        .toggle-group label:has(input:checked) { border-color: var(--blue); background: var(--card); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .sub-menu { display: none; background: var(--bg); border-left: 3px solid var(--blue); padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 10px; margin-top: 5px;}
+        .sub-menu.active { display: flex; flex-direction: column; gap: 10px; animation: fadeIn 0.3s ease; }
+        .sub-menu label { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+        .sub-menu input[type="checkbox"], .sub-menu input[type="radio"] { width: 18px; height: 18px; accent-color: var(--blue); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .finish-btn { background: var(--blue); color: #fff; border: none; padding: 14px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; width: 100%; max-width: 600px; cursor: pointer; display: block; margin: 25px auto 0 auto; box-shadow: 0 4px 15px rgba(0, 113, 227, 0.3); transition: transform 0.1s, opacity 0.2s; }
+        .finish-btn:active { transform: scale(0.98); }
+
+        .result-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--card); z-index: 2000; flex-direction: column; align-items: center; justify-content: flex-start; padding: 25px 20px 40px 20px; text-align: center; overflow-y: auto; animation: fadeIn 0.5s ease; }
+        
+        .score-circle { 
+            width: 130px; 
+            height: 130px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 36px; 
+            font-weight: bold; 
+            margin: 15px 0; 
+            position: relative;
+            background: var(--card);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            flex-shrink: 0; 
+        }
+        .score-circle span {
+            z-index: 2;
+            background: var(--card);
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .price-card {
+            background: var(--bg);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+            margin-top: 15px;
+            text-align: left;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            border: 1px solid var(--border);
+        }
+        .price-row {
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .price-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .price-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        .badge-green { background: rgba(52, 199, 89, 0.15); color: var(--green); }
+        .badge-red { background: rgba(255, 59, 48, 0.15); color: var(--red); }
+        .badge-blue { background: rgba(0, 113, 227, 0.15); color: var(--blue); }
+        
+        .price-val {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text);
+            margin: 2px 0;
+        }
+        .price-explanation {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        .details-btn { background: var(--card); border: 1px solid var(--border); color: var(--blue); padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 20px; width: 100%; max-width: 480px; }
+        .restart-btn { margin-top: 10px; background: transparent; border: 2px solid var(--blue); color: var(--blue); padding: 12px 30px; border-radius: 10px; font-size: 15px; cursor: pointer; font-weight: 600; width: 100%; max-width: 480px; }
+
+        #details-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 7000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .details-content { background: var(--card); padding: 20px; border-radius: 16px; width: 100%; max-width: 450px; max-height: 80vh; overflow-y: auto; text-align: left; font-size: 14px; line-height: 1.5; box-shadow: 0 5px 25px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+<div id="splash-screen"></div>
+
+<div id="mode-screen">
+    <div class="mode-card">
+        <h2 id="txt-mode-title" style="margin-bottom: 15px;">Узнать стоимость айфона</h2>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 25px;" id="txt-mode-subtitle">Выберите цель оценки:</p>
+        <button class="mode-btn" onclick="selectMode('buy')" id="btn-buy">🛒 Покупка</button>
+        <button class="mode-btn" onclick="selectMode('sell')" id="btn-sell" style="background: var(--green);">🏷️ Продажа</button>
+    </div>
+</div>
+
+<button class="settings-btn" onclick="openSettings()">⚙️</button>
+
+<div id="settings-modal" onclick="closeSettingsOutside(event)">
+    <div class="settings-content">
+        <h3 id="set-title" style="margin-bottom: 15px;">Настройки</h3>
+        
+        <div class="section-label" id="set-lang-label">Язык / Language / 语言</div>
+        <select id="lang-select" class="model-select" onchange="changeLanguage(this.value)" style="margin-bottom: 15px;">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+            <option value="zh">中文 (Chinese)</option>
+        </select>
+
+        <div class="section-label" id="set-theme-label">Тема оформления</div>
+        <button class="model-select" onclick="toggleTheme()" id="theme-toggle-btn" style="cursor: pointer; text-align: left;">🌙 Сменить тему</button>
+
+        <button class="settings-close" onclick="closeSettings()" id="set-close-btn">Готово</button>
+    </div>
+</div>
+
+<div class="progress-container">
+    <div class="progress-text" id="progress-text">Пройдено: 0 из 12</div>
+    <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+    </div>
+</div>
+
+<div class="container" id="main-app">
+    <h1 id="app-title">Оценка iPhone</h1>
+    <div class="subtitle" id="app-subtitle">Полная диагностика и рыночный расчет для Авито</div>
+
+    <div class="card" id="card-model" data-step-card="model">
+        <h3 id="card-model-title">Модель устройства и Память</h3>
+        <div class="model-header" style="margin-bottom: 10px;">
+            <div class="accordion-select" id="accordion-select">
+                <div class="accordion-header" id="accordion-label" onclick="toggleAccordion()">Выберите модель iPhone...</div>
+                <div class="accordion-body">
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 17</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="17e" onclick="selectModel(this, '17e', 'iPhone 17e')">iPhone 17e</div>
+                            <div class="model-item" data-val="17" onclick="selectModel(this, '17', 'iPhone 17')">iPhone 17</div>
+                            <div class="model-item" data-val="17air" onclick="selectModel(this, '17air', 'iPhone Air')">iPhone Air</div>
+                            <div class="model-item" data-val="17p" onclick="selectModel(this, '17p', 'iPhone 17 Pro')">iPhone 17 Pro</div>
+                            <div class="model-item" data-val="17pm" onclick="selectModel(this, '17pm', 'iPhone 17 Pro Max')">iPhone 17 Pro Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 16</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="16" onclick="selectModel(this, '16', 'iPhone 16')">iPhone 16</div>
+                            <div class="model-item" data-val="16plus" onclick="selectModel(this, '16plus', 'iPhone 16 Plus')">iPhone 16 Plus</div>
+                            <div class="model-item" data-val="16p" onclick="selectModel(this, '16p', 'iPhone 16 Pro')">iPhone 16 Pro</div>
+                            <div class="model-item" data-val="16pm" onclick="selectModel(this, '16pm', 'iPhone 16 Pro Max')">iPhone 16 Pro Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 15</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="15" onclick="selectModel(this, '15', 'iPhone 15')">iPhone 15</div>
+                            <div class="model-item" data-val="15plus" onclick="selectModel(this, '15plus', 'iPhone 15 Plus')">iPhone 15 Plus</div>
+                            <div class="model-item" data-val="15p" onclick="selectModel(this, '15p', 'iPhone 15 Pro')">iPhone 15 Pro</div>
+                            <div class="model-item" data-val="15pm" onclick="selectModel(this, '15pm', 'iPhone 15 Pro Max')">iPhone 15 Pro Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 14</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="14" onclick="selectModel(this, '14', 'iPhone 14')">iPhone 14</div>
+                            <div class="model-item" data-val="14plus" onclick="selectModel(this, '14plus', 'iPhone 14 Plus')">iPhone 14 Plus</div>
+                            <div class="model-item" data-val="14p" onclick="selectModel(this, '14p', 'iPhone 14 Pro')">iPhone 14 Pro</div>
+                            <div class="model-item" data-val="14pm" onclick="selectModel(this, '14pm', 'iPhone 14 Pro Max')">iPhone 14 Pro Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 13</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="13m" onclick="selectModel(this, '13m', 'iPhone 13 mini')">iPhone 13 mini</div>
+                            <div class="model-item" data-val="13" onclick="selectModel(this, '13', 'iPhone 13')">iPhone 13</div>
+                            <div class="model-item" data-val="13p" onclick="selectModel(this, '13p', 'iPhone 13 Pro')">iPhone 13 Pro</div>
+                            <div class="model-item" data-val="13pm" onclick="selectModel(this, '13pm', 'iPhone 13 Pro Max')">iPhone 13 Pro Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 12</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="12m" onclick="selectModel(this, '12m', 'iPhone 12 mini')">iPhone 12 mini</div>
+                            <div class="model-item" data-val="12" onclick="selectModel(this, '12', 'iPhone 12')">iPhone 12</div>
+                            <div class="model-item" data-val="12p" onclick="selectModel(this, '12p', 'iPhone 12 Pro')">iPhone 12 Pro</div>
+                            <div class="model-item" data-val="12pm" onclick="selectModel(this, '12pm', 'iPhone 12 Pro Max')">iPhone 12 Pro Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 11</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="11" onclick="selectModel(this, '11', 'iPhone 11')">iPhone 11</div>
+                            <div class="model-item" data-val="11p" onclick="selectModel(this, '11p', 'iPhone 11 Pro')">iPhone 11 Pro</div>
+                            <div class="model-item" data-val="11pm" onclick="selectModel(this, '11pm', 'iPhone 11 Pro Max')">iPhone 11 Pro Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone X / XS / XR и SE</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="se2020" onclick="selectModel(this, 'se2020', 'iPhone SE (2020)')">iPhone SE (2020)</div>
+                            <div class="model-item" data-val="se2022" onclick="selectModel(this, 'se2022', 'iPhone SE (2022)')">iPhone SE (2022)</div>
+                            <div class="model-item" data-val="x" onclick="selectModel(this, 'x', 'iPhone X')">iPhone X</div>
+                            <div class="model-item" data-val="xr" onclick="selectModel(this, 'xr', 'iPhone XR')">iPhone XR</div>
+                            <div class="model-item" data-val="xs" onclick="selectModel(this, 'xs', 'iPhone XS')">iPhone XS</div>
+                            <div class="model-item" data-val="xsm" onclick="selectModel(this, 'xsm', 'iPhone XS Max')">iPhone XS Max</div>
+                        </div>
+                    </div>
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">iPhone 8 / 7 / 6 / 5 / 4 / 3 / 2</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="8p" onclick="selectModel(this, '8p', 'iPhone 8 Plus')">iPhone 8 Plus</div>
+                            <div class="model-item" data-val="8" onclick="selectModel(this, '8', 'iPhone 8')">iPhone 8</div>
+                            <div class="model-item" data-val="7p" onclick="selectModel(this, '7p', 'iPhone 7 Plus')">iPhone 7 Plus</div>
+                            <div class="model-item" data-val="7" onclick="selectModel(this, '7', 'iPhone 7')">iPhone 7</div>
+                            <div class="model-item" data-val="6sp" onclick="selectModel(this, '6sp', 'iPhone 6s Plus')">iPhone 6s Plus</div>
+                            <div class="model-item" data-val="6s" onclick="selectModel(this, '6s', 'iPhone 6s')">iPhone 6s</div>
+                            <div class="model-item" data-val="6p" onclick="selectModel(this, '6p', 'iPhone 6 Plus')">iPhone 6 Plus</div>
+                            <div class="model-item" data-val="6" onclick="selectModel(this, '6', 'iPhone 6')">iPhone 6</div>
+                            <div class="model-item" data-val="5s" onclick="selectModel(this, '5s', 'iPhone 5s')">iPhone 5s</div>
+                            <div class="model-item" data-val="5" onclick="selectModel(this, '5', 'iPhone 5 / 5c')">iPhone 5 / 5c</div>
+                            <div class="model-item" data-val="4" onclick="selectModel(this, '4', 'iPhone 4 / 4s')">iPhone 4 / 4s</div>
+                            <div class="model-item" data-val="3g" onclick="selectModel(this, '3g', 'iPhone 3G / 3GS')">iPhone 3G / 3GS</div>
+                            <div class="model-item" data-val="2g" onclick="selectModel(this, '2g', 'iPhone 2G (Original)')">iPhone 2G (Original)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="reset-btn" onclick="resetForm()" title="Сбросить">✕</button>
+        </div>
+        <select class="model-select" id="device-memory" onchange="checkCompletion()" style="display:none; margin-top: 10px;"></select>
+    </div>
+
+    <!-- КОРОБКА -->
+    <div class="card" data-step-card="box">
+        <h3 id="card-box-title">Наличие коробки</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="box_status" value="yes" onchange="toggleSub('sub-box', true); checkCompletion()"> <span data-i18n="boxYes">Коробка есть</span></label>
+            <label><input type="radio" name="box_status" value="no" onchange="toggleSub('sub-box', false); checkCompletion()"> <span data-i18n="boxNo">Без коробки</span></label>
+        </div>
+        <div id="sub-box" class="sub-menu">
+            <div class="section-label" id="label-box-type" data-i18n="boxTypeLabel">Тип коробки:</div>
+            <label><input type="radio" name="box_type" value="original" data-bonus="3" onchange="checkCompletion()"> <span data-i18n="boxOrig">Оригинальная коробка — (+3%)</span></label>
+            <label><input type="radio" name="box_type" value="fake" onchange="checkCompletion()"> <span data-i18n="boxFake">Неоригинальная коробка / Реплика — (0%)</span></label>
+        </div>
+    </div>
+
+    <div class="card" data-step-card="sim">
+        <h3 id="card-sim-title">Связь и SIM-карты</h3>
+        <div class="toggle-group req-group" style="flex-wrap: wrap;">
+            <label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="1sim" onchange="checkCompletion()"> <span data-i18n="sim1">1 SIM (физическая) — (0%)</span></label>
+            <label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="2sim" data-bonus="5" onchange="checkCompletion()"> <span data-i18n="sim2">2 SIM (физические) — (+5%)</span></label>
+            <label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="sim_esim" data-bonus="3" onchange="checkCompletion()"> <span data-i18n="simesim">SIM + eSIM — (+3%)</span></label>
+            <label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="esim_only" onchange="checkCompletion()"> <span data-i18n="esimonly">Только eSIM — (0%)</span></label>
+        </div>
+    </div>
+
+    <!-- ICLOUD -->
+    <div class="card" data-step-card="icloud">
+        <h3 id="card-icloud-title">Отвязка от iCloud</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="icloud" value="yes" onchange="checkCompletion()"> <span data-i18n="icloudYes">Отвязан от iCloud — (0%)</span></label>
+            <label><input type="radio" name="icloud" value="no" data-penalty="75" onchange="checkCompletion()"> <span data-i18n="icloudNo">Не отвязан / Заблокирован (Activation Lock) — (75%)</span></label>
+        </div>
+    </div>
+
+    <div class="card" data-step-card="appearance">
+        <h3 id="card-body-title">Внешний вид корпуса и стекла</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="appearance" value="yes" onchange="toggleSub('sub-app', false); checkCompletion()"> <span data-i18n="ideal">Идеал</span></label>
+            <label><input type="radio" name="appearance" value="no" onchange="toggleSub('sub-app', true); checkCompletion()"> <span data-i18n="defects">Дефекты</span></label>
+        </div>
+        <div id="sub-app" class="sub-menu">
+            <label><input type="checkbox" data-penalty="3" onchange="checkCompletion()"> <span data-i18n="scr1">Мелкие царапины на экране — (-3%)</span></label>
+            <label><input type="checkbox" data-penalty="5" onchange="checkCompletion()"> <span data-i18n="scr2">Глубокие царапины на экране — (-5%)</span></label>
+            <label><input type="checkbox" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="scr3">Трещины на стекле экрана — (-15%)</span></label>
+            <label><input type="checkbox" data-penalty="5" onchange="checkCompletion()"> <span data-i18n="body1">Потертости на корпусе — (-5%)</span></label>
+            <label><input type="checkbox" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="body2">Сколы или вмятины на корпусе — (-10%)</span></label>
+            <label><input type="checkbox" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="body3">Разбита задняя крышка — (-10%)</span></label>
+        </div>
+    </div>
+
+    <div class="card" data-step-card="display">
+        <h3 id="card-disp-title">Дисплей (Матрица)</h3>
+        <div class="section-label" data-i18n="partOrigin">Происхождение детали:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="disp_orig" value="yes" onchange="checkCompletion()"> <span data-i18n="original">Оригинальный дисплей — (0%)</span></label>
+            <label><input type="radio" name="disp_orig" value="replaced" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="replacedDisp">Менялся дисплей (на другой оригинал/копию) — (-10%)</span></label>
+        </div>
+        <div class="section-label" data-i18n="matrixState">Состояние матрицы:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="display" value="yes" onchange="toggleSub('sub-disp', false); checkCompletion()"> <span data-i18n="ideal">Идеал</span></label>
+            <label><input type="radio" name="display" value="no" onchange="toggleSub('sub-disp', true); checkCompletion()"> <span data-i18n="defects">Дефекты</span></label>
+        </div>
+        <div id="sub-disp" class="sub-menu">
+            <label><input type="checkbox" data-penalty="30" onchange="checkCompletion()"> <span data-i18n="dsp1">Мертвые зоны на тачскрине (не реагирует на касания) — (-30%)</span></label>
+            <label><input type="checkbox" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="dsp2">Засветы на белом фоне — (-15%)</span></label>
+            <label><input type="checkbox" data-penalty="35" onchange="checkCompletion()"> <span data-i18n="dsp3">Матрица потекла / Цветные пятна / Полосы — (-35%)</span></label>
+            <label><input type="checkbox" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="dsp4">Битые пиксели — (-10%)</span></label>
+        </div>
+    </div>
+
+    <!-- БИОМЕТРИЯ -->
+    <div class="card" id="biometry-card" data-step-card="biometry">
+        <h3 id="biometry-title">Биометрия и True Tone</h3>
+        <div id="biometry-container" style="margin-bottom: 10px;"></div>
+        <div class="toggle-group req-group" id="truetone-group">
+            <label><input type="radio" name="truetone" value="yes" onchange="checkCompletion()"> <span data-i18n="ttYes">True Tone присутствует и работает — (0%)</span></label>
+            <label><input type="radio" name="truetone" value="no" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="ttNo">Нет True Tone — (-10%)</span></label>
+        </div>
+    </div>
+
+    <!-- КНОПКИ -->
+    <div class="card" data-step-card="buttons">
+        <h3 id="card-buttons-title">Кнопки питания и громкости</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="buttons_status" value="ok" onchange="checkCompletion()"> <span data-i18n="btnOk">Кнопки питания и громкости работают идеально — (0%)</span></label>
+            <label><input type="radio" name="buttons_status" value="stuck" data-penalty="7" onchange="checkCompletion()"> <span data-i18n="btnStuck">Кнопки заедают / тугой ход — (-7%)</span></label>
+            <label><input type="radio" name="buttons_status" value="broken" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="btnBroken">Кнопки не работают / запали — (-15%)</span></label>
+        </div>
+    </div>
+
+    <!-- NFC -->
+    <div class="card" id="nfc-card" data-step-card="nfc">
+        <h3 id="card-nfc-title">Бесконтактная оплата (NFC / Apple Pay)</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="nfc_status" value="yes" onchange="checkCompletion()"> <span data-i18n="nfcYes">NFC работает — (0%)</span></label>
+            <label><input type="radio" name="nfc_status" value="no" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="nfcNo">NFC не работает — (-15%)</span></label>
+        </div>
+    </div>
+
+    <div class="card" data-step-card="battery">
+        <h3 id="card-batt-title">Аккумулятор</h3>
+        <div class="section-label" data-i18n="partOrigin">Происхождение детали:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="batt_orig" value="yes" onchange="toggleSub('sub-batt-orig', false); checkCompletion()"> <span data-i18n="original">Оригинал</span></label>
+            <label><input type="radio" name="batt_orig" value="replaced" onchange="toggleSub('sub-batt-orig', true); checkCompletion()"> <span data-i18n="replacedBatt">Менялся</span></label>
+        </div>
+        <div id="sub-batt-orig" class="sub-menu">
+            <label><input type="radio" name="batt_sub_choice" value="replaced_action" data-penalty="5" onchange="checkCompletion()"> <span>Менялся аккумулятор — (-5%)</span></label>
+        </div>
+        <div class="section-label" data-i18n="wearLabel">Износ:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="battery" value="yes" onchange="toggleSub('sub-batt', false); checkCompletion()"> <span data-i18n="batt100">Аккумулятор оригинал, 100% / Отличное состояние — (0%)</span></label>
+            <label><input type="radio" name="battery" value="no" onchange="toggleSub('sub-batt', true); checkCompletion()"> <span data-i18n="battWorn">Изношен</span></label>
+        </div>
+        <div id="sub-batt" class="sub-menu">
+            <label><input type="radio" name="batt_lvl" data-penalty="3" onchange="checkCompletion()"> <span data-i18n="b1">Износ: Емкость больше 80% — (-3%)</span></label>
+            <label><input type="radio" name="batt_lvl" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="b2">Износ: Емкость от 60% до 79% (Требуется замена) — (-10%)</span></label>
+            <label><input type="radio" name="batt_lvl" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="b3">Износ: Емкость менее 60% — (-15%)</span></label>
+            <label><input type="radio" name="batt_lvl" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="b4">Ошибка аккумулятора «Неизвестная деталь» — (-15%)</span></label>
+        </div>
+    </div>
+
+    <div class="card" data-step-card="camera">
+        <h3 id="card-cam-title">Камеры</h3>
+        <div class="section-label" data-i18n="camModule">Модуль камер:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="cam_orig" value="yes" onchange="toggleSub('sub-cam-orig', false); checkCompletion()"> <span data-i18n="original">Оригинал</span></label>
+            <label><input type="radio" name="cam_orig" value="replaced" onchange="toggleSub('sub-cam-orig', true); checkCompletion()"> <span data-i18n="replacedCam">Менялась</span></label>
+        </div>
+        <div id="sub-cam-orig" class="sub-menu">
+            <label><input type="radio" name="cam_sub_choice" value="replaced_action" data-penalty="10" onchange="checkCompletion()"> <span>Менялась камера — (-10%)</span></label>
+        </div>
+        <div class="section-label" data-i18n="camWork">Работа камеры:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="camera_status" value="yes" onchange="toggleSub('sub-cam', false); checkCompletion()"> <span data-i18n="ideal">Камера идеальна — (0%)</span></label>
+            <label><input type="radio" name="camera_status" value="no" onchange="toggleSub('sub-cam', true); checkCompletion()"> <span data-i18n="defects">Дефекты</span></label>
+        </div>
+        <div id="sub-cam" class="sub-menu">
+            <label><input type="checkbox" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="cm1">Пятна на линзе / матрице камеры — (-15%)</span></label>
+            <label><input type="checkbox" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="cm2">Тряска при зуме / Не работает оптическая стабилизация / Нет фокуса — (-15%)</span></label>
+        </div>
+    </div>
+
+    <div class="card" data-step-card="mics">
+        <h3 id="card-mic-title">Микрофоны и Диктофон</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="mics" value="yes" onchange="toggleSub('sub-mics', false); checkCompletion()"> <span data-i18n="micOk">Все микрофоны работают идеально — (0%)</span></label>
+            <label><input type="radio" name="mics" value="no" onchange="toggleSub('sub-mics', true); checkCompletion()"> <span data-i18n="micBad">Есть дефекты звука</span></label>
+        </div>
+        <div id="sub-mics" class="sub-menu">
+            <label><input type="checkbox" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="mc1">Нижний микрофон не работает — (-15%)</span></label>
+            <label><input type="checkbox" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="mc2">Верхний микрофон не работает — (-15%)</span></label>
+            <label><input type="checkbox" data-penalty="15" onchange="checkCompletion()"> <span data-i18n="mc3">Задний микрофон не работает — (-15%)</span></label>
+            <label><input type="checkbox" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="mc4">Микрофоны очень тихие — (-10%)</span></label>
+            <label><input type="checkbox" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="mc5">Постороннее шипение / треск при записи звука — (-10%)</span></label>
+        </div>
+    </div>
+
+    <div class="card" data-step-card="network">
+        <h3 id="card-net-title">Связь, Wi-Fi, Датчики</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="network" value="yes" onchange="toggleSub('sub-net', false); checkCompletion()"> <span data-i18n="netOk">Всё работает исправно — (0%)</span></label>
+            <label><input type="radio" name="network" value="no" onchange="toggleSub('sub-net', true); checkCompletion()"> <span data-i18n="defects">Дефекты</span></label>
+        </div>
+        <div id="sub-net" class="sub-menu">
+            <label><input type="checkbox" data-penalty="30" onchange="checkCompletion()"> <span data-i18n="nt1">Не ловит сеть / Не видит СИМ-карту (проблемы с модемом) — (-30%)</span></label>
+            <label><input type="checkbox" data-penalty="10" onchange="checkCompletion()"> <span data-i18n="nt2">Не работает eSIM — (-10%)</span></label>
+            <label><input type="checkbox" data-penalty="25" onchange="checkCompletion()"> <span data-i18n="nt3">Не работает Wi-Fi / Bluetooth (проблемы с чипом) — (-25%)</span></label>
+            <label><input type="checkbox" data-penalty="5" onchange="checkCompletion()"> <span data-i18n="nt4">Не работает датчик приближения (гаснет/не гаснет экран при звонке) — (-5%)</span></label>
+        </div>
+    </div>
+
+    <button class="finish-btn" id="finish-btn" onclick="handleFinishClick()">Рассчитать стоимость</button>
+</div>
+
+<div class="result-screen" id="result-screen">
+    <button class="settings-btn" onclick="openSettings()">⚙️</button>
+    <h2 id="res-title-head">Состояние устройства</h2>
+    <div class="score-circle" id="score-circle"><span id="score-text">100%</span></div>
+    <h3 id="result-model">iPhone</h3>
+
+    <!-- Динамическая карточка цен -->
+    <div class="price-card" id="price-card-container"></div>
+
+    <button class="details-btn" onclick="openDetailsModal()" data-i18n="detailsBtn">🔍 Узнать подробности</button>
+    <button class="restart-btn" onclick="resetForm()" data-i18n="restartBtn">Оценить другой телефон</button>
+</div>
+
+<div id="details-modal" onclick="closeDetailsOutside(event)">
+    <div class="details-content" id="details-content-box"></div>
+</div>
+
+<script>
+    let selectedModelKey = "";
+    let selectedModelName = "";
+    let userMode = "buy";
+    let currentLang = "ru";
+    let hasAttemptedSubmit = false;
+
+    let baseCalculatedPriceRUB = 0;
+    let lastDetailsList = [];
+    let lastBasePrice = 0;
+    let lastFinalScore = 100;
+
+    const splashScreen = document.getElementById('splash-screen');
+    splashScreen.addEventListener('animationend', () => {
+        splashScreen.style.display = 'none';
+    });
+
+    const translations = {
+        ru: {
+            modeTitle: "Узнать стоимость айфона", modeSub: "Выберите цель оценки:",
+            buyBtn: "🛒 Покупка", sellBtn: "🏷️ Продажа",
+            appTitle: "Оценка iPhone", appSub: "Полная диагностика и рыночный расчет для Авито",
+            finishBtn: "Рассчитать стоимость", resHead: "Состояние устройства",
+            priceTitle: "Рыночная цена:",
+            detailsBtn: "🔍 Узнать подробности", restartBtn: "Оценить другой телефон",
+            settingsTitle: "Настройки", langLabel: "Язык / Language / 语言",
+            themeLabel: "Тема оформления", closeBtn: "Готово",
+            modelCardTitle: "Модель устройства и Память",
+            boxCardTitle: "Наличие коробки", boxYes: "Коробка есть", boxNo: "Без коробки",
+            boxTypeLabel: "Тип коробки:", boxOrig: "Оригинальная коробка — (+3%)", boxFake: "Неоригинальная коробка / Реплика — (0%)",
+            simCardTitle: "Связь и SIM-карты", icloudTitle: "Отвязка от iCloud",
+            bodyCardTitle: "Внешний вид корпуса и стекла", dispCardTitle: "Дисплей (Матрица)",
+            biometryCardTitle: "Биометрия и True Tone",
+            buttonsCardTitle: "Кнопки питания и громкости", btnOk: "Кнопки питания и громкости работают идеально — (0%)", btnStuck: "Кнопки заедают / тугой ход — (-7%)", btnBroken: "Кнопки не работают / запали — (-15%)",
+            nfcCardTitle: "Бесконтактная оплата (NFC / Apple Pay)", nfcYes: "NFC работает — (0%)", nfcNo: "NFC не работает — (-15%)",
+            battCardTitle: "Аккумулятор", camCardTitle: "Камеры", micCardTitle: "Микрофоны и Диктофон",
+            netCardTitle: "Связь, Wi-Fi, Датчики",
+            sim1: "1 SIM (физическая) — (0%)", sim2: "2 SIM (физические) — (+5%)", simesim: "SIM + eSIM — (+3%)", esimonly: "Только eSIM — (0%)",
+            icloudYes: "Отвязан от iCloud — (0%)", icloudNo: "Не отвязан / Заблокирован (Activation Lock) — (75%)",
+            ideal: "Идеал", defects: "Дефекты",
+            scr1: "Мелкие царапины на экране — (-3%)", scr2: "Глубокие царапины на экране — (-5%)", scr3: "Трещины на стекле экрана — (-15%)",
+            body1: "Потертости на корпусе — (-5%)", body2: "Сколы или вмятины на корпусе — (-10%)", body3: "Разбита задняя крышка — (-10%)",
+            partOrigin: "Происхождение детали:", original: "Оригинал", replaced: "Менялся",
+            replacedDisp: "Менялся дисплей (на другой оригинал/копию) — (-10%)", replacedBatt: "Менялся аккумулятор — (-5%)", replacedCam: "Менялась камера — (-10%)",
+            matrixState: "Состояние матрицы:",
+            dsp1: "Мертвые зоны на тачскрине (не реагирует на касания) — (-30%)", dsp2: "Засветы на белом фоне — (-15%)", dsp3: "Матрица потекла / Цветные пятна / Полосы — (-35%)", dsp4: "Битые пиксели — (-10%)",
+            ttYes: "True Tone присутствует и работает — (0%)", ttNo: "Нет True Tone — (-10%)",
+            wearLabel: "Износ:", batt100: "Аккумулятор оригинал, 100% / Отличное состояние — (0%)", battWorn: "Изношен",
+            b1: "Износ: Емкость больше 80% — (-3%)", b2: "Износ: Емкость от 60% до 79% (Требуется замена) — (-10%)", b3: "Износ: Емкость менее 60% — (-15%)", b4: "Ошибка аккумулятора «Неизвестная деталь» — (-15%)",
+            camModule: "Модуль камер:", camWork: "Работа камеры:",
+            cm1: "Пятна на линзе / матрице камеры — (-15%)", cm2: "Тряска при зуме / Не работает оптическая стабилизация / Нет фокуса — (-15%)",
+            micOk: "Все микрофоны работают идеально — (0%)", micBad: "Есть дефекты звука",
+            mc1: "Нижний микрофон не работает — (-15%)", mc2: "Верхний микрофон не работает — (-15%)", mc3: "Задний микрофон не работает — (-15%)", mc4: "Микрофоны очень тихие — (-10%)", mc5: "Постороннее шипение / треск при записи звука — (-10%)",
+            netOk: "Всё работает исправно — (0%)",
+            nt1: "Не ловит сеть / Не видит СИМ-карту (проблемы с модемом) — (-30%)", nt2: "Не работает eSIM — (-10%)", nt3: "Не работает Wi-Fi / Bluetooth (проблемы с чипом) — (-25%)", nt4: "Не работает датчик приближения (гаснет/не гаснет экран при звонке) — (-5%)",
+            progressText: "Пройдено: {completed} из {total}",
+            selectModelPlaceholder: "Выберите модель iPhone...",
+            selectStoragePlaceholder: "Выберите объем памяти...",
+            touchIdLabel: "Сканер отпечатка пальца (Touch ID):",
+            touchIdOk: "Touch ID работает — (0%)",
+            faceIdLabel: "Распознавание лица (Face ID):",
+            faceIdOk: "Face ID работает — (0%)",
+            bioNotSupported: "Биометрия не предусмотрена для этой модели",
+            notWorking: "Touch ID не работает — (-15%)",
+            faceIdNotWorking: "Face ID не работает (ошибка TrueDepth / шлейф) — (-20%)",
+            modeSellBadge: "Режим «Продать»",
+            recPriceLabel: "Рекомендуемая цена для выставления (с учетом торга):",
+            minPriceBadge: "Порог торга",
+            minPriceLabel: "Минимальная цена, ниже которой падать не стоит:",
+            modeBuyBadge: "Режим «Купить»",
+            buyPriceLabel: "Справедливая цена покупки этого Айфона:",
+            buyDefectReason: "Устройство имеет выявленные дефекты. Покажите этот отчет продавцу и требуйте скидку на их устранение.",
+            buyNoDefectReason: "Справедливая рыночная цена для закупа без переплат.",
+            detailsHeader: "Детализация оценки:",
+            baseModelLabel: "Базовая модель:",
+            basePriceLabel: "Эталонная стоимость:",
+            detectedFactorsLabel: "Выявленные факторы:",
+            noDefectsText: "Дефектов не обнаружено (100% идеальное состояние)",
+            finalIndexLabel: "Итоговый индекс состояния:"
+        },
+        en: {
+            modeTitle: "Check iPhone Value", modeSub: "Select assessment goal:",
+            buyBtn: "🛒 Purchase", sellBtn: "🏷️ Sale",
+            appTitle: "iPhone Evaluation", appSub: "Full diagnostics and market calculation",
+            finishBtn: "Calculate Price", resHead: "Device Condition",
+            priceTitle: "Market Price:",
+            detailsBtn: "🔍 View Details", restartBtn: "Evaluate Another Phone",
+            settingsTitle: "Settings", langLabel: "Language",
+            themeLabel: "Theme", closeBtn: "Done",
+            modelCardTitle: "Device Model & Memory",
+            boxCardTitle: "Box Availability", boxYes: "Box included", boxNo: "No box",
+            boxTypeLabel: "Box Type:", boxOrig: "Original box — (+3%)", boxFake: "Non-original / Replica — (0%)",
+            simCardTitle: "Connectivity & SIMs", icloudTitle: "iCloud Status",
+            bodyCardTitle: "Body & Glass Appearance", dispCardTitle: "Display (Matrix)",
+            biometryCardTitle: "Biometrics & True Tone",
+            buttonsCardTitle: "Power & Volume Buttons", btnOk: "Work perfectly — (0%)", btnStuck: "Sticky — (-7%)", btnBroken: "Not working — (-15%)",
+            nfcCardTitle: "Contactless Payment (NFC / Apple Pay)", nfcYes: "Working — (0%)", nfcNo: "Not working — (-15%)",
+            battCardTitle: "Battery", camCardTitle: "Cameras", micCardTitle: "Mics & Voice Recorder",
+            netCardTitle: "Network, Wi-Fi, Sensors",
+            sim1: "1 SIM — (0%)", sim2: "2 SIM (physical) — (+5%)", simesim: "SIM + eSIM — (+3%)", esimonly: "eSIM only — (0%)",
+            icloudYes: "Signed out — (0%)", icloudNo: "Not signed out — (75%)",
+            ideal: "Mint", defects: "Defects",
+            scr1: "Minor screen scratches — (-3%)", scr2: "Deep screen scratches — (-5%)", scr3: "Screen glass cracks — (-15%)",
+            body1: "Body scuffs — (-5%)", body2: "Body dents/chips — (-10%)", body3: "Broken back glass — (-10%)",
+            partOrigin: "Part origin:", original: "Original", replaced: "Replaced",
+            replacedDisp: "Display replaced — (-10%)", replacedBatt: "Battery replaced — (-5%)", replacedCam: "Camera replaced — (-10%)",
+            matrixState: "Matrix condition:",
+            dsp1: "Dead touch zones — (-30%)", dsp2: "White background glows — (-15%)", dsp3: "Matrix leaking / Spots — (-35%)", dsp4: "Dead pixels — (-10%)",
+            ttYes: "True Tone present — (0%)", ttNo: "No True Tone — (-10%)",
+            wearLabel: "Wear:", batt100: "Battery original, 100% — (0%)", battWorn: "Worn",
+            b1: "Above 80% — (-3%)", b2: "60% to 79% (Needs replacement) — (-10%)", b3: "Less than 60% — (-15%)", b4: "\"Unknown Part\" error — (-15%)",
+            camModule: "Camera module:", camWork: "Camera operation:",
+            cm1: "Spots on lens / matrix — (-15%)", cm2: "Zoom shake / Out of focus — (-15%)",
+            micOk: "All work perfectly — (0%)", micBad: "Sound defects",
+            mc1: "Bottom mic not working — (-15%)", mc2: "Top mic not working — (-15%)", mc3: "Rear mic not working — (-15%)", mc4: "Mics very quiet — (-10%)", mc5: "Hissing when recording — (-10%)",
+            netOk: "Everything works — (0%)",
+            nt1: "No cellular network — (-30%)", nt2: "eSIM not working — (-10%)", nt3: "Wi-Fi / Bluetooth not working — (-25%)", nt4: "Proximity sensor not working — (-5%)",
+            progressText: "Completed: {completed} of {total}",
+            selectModelPlaceholder: "Select iPhone model...",
+            selectStoragePlaceholder: "Select storage...",
+            touchIdLabel: "Touch ID Fingerprint Scanner:",
+            touchIdOk: "Touch ID working — (0%)",
+            faceIdLabel: "Face ID Recognition:",
+            faceIdOk: "Face ID working — (0%)",
+            bioNotSupported: "Biometrics not supported for this model",
+            notWorking: "Touch ID not working — (-15%)",
+            faceIdNotWorking: "Face ID not working — (-20%)",
+            modeSellBadge: "Mode «Sell»",
+            recPriceLabel: "Recommended listing price (including margin for bargaining):",
+            minPriceBadge: "Bargain Limit",
+            minPriceLabel: "Minimum acceptable price limit:",
+            modeBuyBadge: "Mode «Buy»",
+            buyPriceLabel: "Fair purchase price for this iPhone:",
+            buyDefectReason: "Device has identified defects. Show this report to the seller and request a discount for repairs.",
+            buyNoDefectReason: "Fair market price for purchase without overpaying.",
+            detailsHeader: "Evaluation Breakdown:",
+            baseModelLabel: "Base model:",
+            basePriceLabel: "Reference price:",
+            detectedFactorsLabel: "Identified factors:",
+            noDefectsText: "No defects detected (100% mint condition)",
+            finalIndexLabel: "Final condition index:"
+        },
+        zh: {
+            modeTitle: "查询苹果手机价格", modeSub: "选择评估目的：",
+            buyBtn: "🛒 购买", sellBtn: "🏷️ 出售",
+            appTitle: "iPhone 评估", appSub: "完整诊断与市场价格计算",
+            finishBtn: "计算价格", resHead: "设备状况",
+            priceTitle: "市场价格：",
+            detailsBtn: "🔍 查看详情", restartBtn: "评估另一部手机",
+            settingsTitle: "设置", langLabel: "语言",
+            themeLabel: "主题", closeBtn: "完成",
+            modelCardTitle: "设备型号与内存",
+            boxCardTitle: "包装盒情况", boxYes: "有包装盒", boxNo: "无包装盒",
+            boxTypeLabel: "包装盒类型:", boxOrig: "原装盒 — (+3%)", boxFake: "非原装/山寨盒 — (0%)",
+            simCardTitle: "网络与SIM卡", icloudTitle: "iCloud 账号状态",
+            bodyCardTitle: "机身与玻璃外观", dispCardTitle: "显示屏 (液晶)",
+            biometryCardTitle: "生物识别与原彩显示",
+            buttonsCardTitle: "电源与音量按键", btnOk: "完美工作 — (0%)", btnStuck: "迟钝 — (-7%)", btnBroken: "损坏失灵 — (-15%)",
+            nfcCardTitle: "非接触式支付 (NFC / Apple Pay)", nfcYes: "正常使用 — (0%)", nfcNo: "无法使用 — (-15%)",
+            battCardTitle: "电池状况", camCardTitle: "相机模块", micCardTitle: "麦克风与录音",
+            netCardTitle: "网络、Wi-Fi、传感器",
+            sim1: "单SIM卡 — (0%)", sim2: "双物理SIM卡 — (+5%)", simesim: "SIM + eSIM — (+3%)", esimonly: "仅 eSIM — (0%)",
+            icloudYes: "已退出 — (0%)", icloudNo: "未退出 — (75%)",
+            ideal: "完美", defects: "有瑕疵",
+            scr1: "屏幕轻微划痕 — (-3%)", scr2: "屏幕深层划痕 — (-5%)", scr3: "屏幕玻璃碎裂 — (-15%)",
+            body1: "机身磨损 — (-5%)", body2: "机身磕碰/凹陷 — (-10%)", body3: "后盖碎裂 — (-10%)",
+            partOrigin: "配件来源:", original: "原装", replaced: "更换过",
+            replacedDisp: "更换过屏幕 — (-10%)", replacedBatt: "更换过电池 — (-5%)", replacedCam: "更换过相机 — (-10%)",
+            matrixState: "屏幕显示状态:",
+            dsp1: "触控死区 — (-30%)", dsp2: "白屏泛光/背光不均 — (-15%)", dsp3: "液晶漏液/斑点 — (-35%)", dsp4: "坏点 — (-10%)",
+            ttYes: "有 True Tone — (0%)", ttNo: "无 True Tone — (-10%)",
+            wearLabel: "健康度:", batt100: "电池原装，100% — (0%)", battWorn: "损耗",
+            b1: "80%以上 — (-3%)", b2: "60%至79% (需更换) — (-10%)", b3: "低于60% — (-15%)", b4: "\"未知部件\" 提示 — (-15%)",
+            camModule: "相机组件:", camWork: "相机功能:",
+            cm1: "镜头/感光元件有斑点 — (-15%)", cm2: "变焦抖动 / 无法对焦 — (-15%)",
+            micOk: "全部完美工作 — (0%)", micBad: "存在声音缺陷",
+            mc1: "底部麦克风损坏 — (-15%)", mc2: "顶部麦克风损坏 — (-15%)", mc3: "背面麦克风损坏 — (-15%)", mc4: "麦克风声音过小 — (-10%)", mc5: "录音有杂音/电流声 — (-10%)",
+            netOk: "一切正常 — (0%)",
+            nt1: "无蜂窝网络信号 — (-30%)", nt2: "eSIM 无法使用 — (-10%)", nt3: "Wi-Fi / 蓝牙无法使用 — (-25%)", nt4: "距离感应器失效 — (-5%)",
+            progressText: "已完成: {completed} / {total}",
+            selectModelPlaceholder: "选择iPhone型号...",
+            selectStoragePlaceholder: "选择存储容量...",
+            touchIdLabel: "指纹识别 (Touch ID):",
+            touchIdOk: "Touch ID 正常 — (0%)",
+            faceIdLabel: "面容识别 (Face ID):",
+            faceIdOk: "Face ID 正常 — (0%)",
+            bioNotSupported: "此型号无生物识别功能",
+            notWorking: "Touch ID 损坏 — (-15%)",
+            faceIdNotWorking: "Face ID 损坏 — (-20%)",
+            modeSellBadge: "«出售» 模式",
+            recPriceLabel: "建议挂牌价（已预留议价空间）：",
+            minPriceBadge: "议价底线",
+            minPriceLabel: "最低可接受价格：",
+            modeBuyBadge: "«购买» 模式",
+            buyPriceLabel: "此 iPhone 的合理入手价：",
+            buyDefectReason: "设备存在已知瑕疵，建议向卖家展示此报告并要求相应优惠。",
+            buyNoDefectReason: "无溢价的合理二手市场收购价。",
+            detailsHeader: "评估明细：",
+            baseModelLabel: "基础型号：",
+            basePriceLabel: "参考基准价：",
+            detectedFactorsLabel: "评估影响因素：",
+            noDefectsText: "未发现缺陷（100% Perfect 状态）",
+            finalIndexLabel: "最终综合成色指数："
+        }
+    };
+
+    function selectMode(mode) {
+        userMode = mode;
+        document.getElementById('mode-screen').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('mode-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+        }, 500);
+    }
+
+    function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+    function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+    function closeSettingsOutside(e) { if (e.target.id === 'settings-modal') closeSettings(); }
+
+    function openDetailsModal() { document.getElementById('details-modal').style.display = 'flex'; }
+    function closeDetailsOutside(e) { if (e.target.id === 'details-modal') document.getElementById('details-modal').style.display = 'none'; }
+
+    function changeLanguage(lang) {
+        currentLang = lang;
+        const t = translations[lang];
+        
+        document.getElementById('txt-mode-title').innerText = t.modeTitle;
+        document.getElementById('txt-mode-subtitle').innerText = t.modeSub;
+        document.getElementById('btn-buy').innerText = t.buyBtn;
+        document.getElementById('btn-sell').innerText = t.sellBtn;
+        document.getElementById('app-title').innerText = t.appTitle;
+        document.getElementById('app-subtitle').innerText = t.appSub;
+        document.getElementById('finish-btn').innerText = t.finishBtn;
+        document.getElementById('res-title-head').innerText = t.resHead;
+        document.querySelector('.details-btn').innerText = t.detailsBtn;
+        document.querySelector('.restart-btn').innerText = t.restartBtn;
+        document.getElementById('set-title').innerText = t.settingsTitle;
+        document.getElementById('set-lang-label').innerText = t.langLabel;
+        document.getElementById('set-theme-label').innerText = t.themeLabel;
+        document.getElementById('set-close-btn').innerText = t.closeBtn;
+
+        document.getElementById('card-model-title').innerText = t.modelCardTitle;
+        document.getElementById('card-box-title').innerText = t.boxCardTitle;
+        document.getElementById('card-sim-title').innerText = t.simCardTitle;
+        document.getElementById('card-icloud-title').innerText = t.icloudTitle;
+        document.getElementById('card-body-title').innerText = t.bodyCardTitle;
+        document.getElementById('card-disp-title').innerText = t.dispCardTitle;
+        document.getElementById('biometry-title').innerText = t.biometryCardTitle;
+        document.getElementById('card-buttons-title').innerText = t.buttonsCardTitle;
+        document.getElementById('card-nfc-title').innerText = t.nfcCardTitle;
+        document.getElementById('card-batt-title').innerText = t.battCardTitle;
+        document.getElementById('card-cam-title').innerText = t.camCardTitle;
+        document.getElementById('card-mic-title').innerText = t.micCardTitle;
+        document.getElementById('card-net-title').innerText = t.netCardTitle;
+
+        if (!selectedModelKey) {
+            document.getElementById('accordion-label').innerText = t.selectModelPlaceholder;
+        }
+
+        const memSelect = document.getElementById('device-memory');
+        if (memSelect && memSelect.options.length > 0 && memSelect.options[0].disabled) {
+            memSelect.options[0].innerText = t.selectStoragePlaceholder;
+        }
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (t[key]) el.innerText = t[key];
+        });
+
+        if (selectedModelKey) {
+            updateBiometryUI();
+        }
+
+        const isDark = document.body.classList.contains('dark-theme');
+        document.getElementById('theme-toggle-btn').innerText = isDark 
+            ? (currentLang === 'ru' ? '☀️ Светлая тема' : (currentLang === 'zh' ? '☀️ 浅色模式' : '☀️ Light Theme')) 
+            : (currentLang === 'ru' ? '🌙 Темная тема' : (currentLang === 'zh' ? '🌙 深色模式' : '🌙 Dark Theme'));
+
+        checkCompletion();
+
+        if (document.getElementById('result-screen').style.display === 'flex') {
+            renderPriceCard(baseCalculatedPriceRUB, lastDetailsList);
+            buildDetailsModalHtml(lastBasePrice, lastDetailsList, lastFinalScore);
+        }
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-theme');
+        const isDark = document.body.classList.contains('dark-theme');
+        document.getElementById('theme-toggle-btn').innerText = isDark 
+            ? (currentLang === 'ru' ? '☀️ Светлая тема' : (currentLang === 'zh' ? '☀️ 浅色模式' : '☀️ Light Theme')) 
+            : (currentLang === 'ru' ? '🌙 Темная тема' : (currentLang === 'zh' ? '🌙 深色模式' : '🌙 Dark Theme'));
+    }
+
+    function toggleAccordion() { document.getElementById('accordion-select').classList.toggle('open'); }
+    function toggleLine(titleEl) { titleEl.parentElement.classList.toggle('expanded'); }
+
+    function resetForm() {
+        selectedModelKey = "";
+        selectedModelName = "";
+        hasAttemptedSubmit = false;
+        
+        document.querySelectorAll('.model-item').forEach(el => el.classList.remove('selected'));
+        document.querySelectorAll('.line-group').forEach(group => group.classList.remove('expanded'));
+        document.getElementById('accordion-select').classList.remove('open');
+        document.getElementById('accordion-label').innerText = translations[currentLang].selectModelPlaceholder;
+        
+        const memorySelect = document.getElementById('device-memory');
+        memorySelect.style.display = 'none';
+        memorySelect.innerHTML = '';
+        
+        document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+            input.checked = false;
+        });
+
+        document.querySelectorAll('.sub-menu').forEach(menu => {
+            menu.classList.remove('active');
+        });
+
+        document.querySelectorAll('.card').forEach(card => {
+            card.classList.remove('invalid');
+        });
+        
+        document.getElementById('biometry-container').innerHTML = '';
+        document.getElementById('truetone-group').style.display = 'flex';
+        document.getElementById('nfc-card').style.display = 'block';
+
+        document.getElementById('result-screen').style.display = 'none';
+
+        checkCompletion();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function selectModel(itemEl, val, name) {
+        selectedModelKey = val;
+        selectedModelName = name;
+        document.querySelectorAll('.model-item').forEach(el => el.classList.remove('selected'));
+        itemEl.classList.add('selected');
+        document.getElementById('accordion-label').innerText = name;
+        document.getElementById('accordion-select').classList.remove('open');
+        onModelChange();
+        updateBiometryUI();
+        updateNfcUI();
+        checkCompletion();
+    }
+
+    const pricesDB = {
+        "17e": { "256 ГБ": 50000 },
+        "17": { "256 ГБ": 65000, "512 ГБ": 74000 },
+        "17air": { "256 ГБ": 70500 },
+        "17p": { "256 ГБ": 81000, "512 ГБ": 94500, "1 ТБ": 110500 },
+        "17pm": { "256 ГБ": 91500, "512 ГБ": 106500, "1 ТБ": 121000 },
+        "16": { "128 ГБ": 38000, "256 ГБ": 44000, "512 ГБ": 51000 },
+        "16plus": { "128 ГБ": 44000, "256 ГБ": 50000, "512 ГБ": 57000 },
+        "16p": { "128 ГБ": 52000, "256 ГБ": 58000, "512 ГБ": 67000, "1 ТБ": 76000 },
+        "16pm": { "256 ГБ": 65000, "512 ГБ": 74000, "1 ТБ": 83000 },
+        "15": { "128 ГБ": 30000, "256 ГБ": 34500, "512 ГБ": 40000 },
+        "15plus": { "128 ГБ": 34500, "256 ГБ": 39000, "512 ГБ": 45000 },
+        "15p": { "128 ГБ": 42000, "256 ГБ": 47000, "512 ГБ": 54000, "1 ТБ": 62000 },
+        "15pm": { "256 ГБ": 52000, "512 ГБ": 60000, "1 ТБ": 68000 },
+        "14": { "128 ГБ": 24000, "256 ГБ": 27500, "512 ГБ": 32000 },
+        "14plus": { "128 ГБ": 27500, "256 ГБ": 31000, "512 ГБ": 36000 },
+        "14p": { "128 ГБ": 33000, "256 ГБ": 37500, "512 ГБ": 43000, "1 ТБ": 49000 },
+        "14pm": { "128 ГБ": 37500, "256 ГБ": 42000, "512 ГБ": 48000, "1 ТБ": 54000 },
+        "13m": { "128 ГБ": 16500, "256 ГБ": 19500, "512 ГБ": 23000 },
+        "13": { "128 ГБ": 19500, "256 ГБ": 22500, "512 ГБ": 26000 },
+        "13p": { "128 ГБ": 26000, "256 ГБ": 29500, "512 ГБ": 34000, "1 ТБ": 38000 },
+        "13pm": { "128 ГБ": 30000, "256 ГБ": 34500, "512 ГБ": 40000, "1 ТБ": 45000 },
+        "12m": { "64 ГБ": 11000, "128 ГБ": 12500, "256 ГБ": 15000 },
+        "12": { "64 ГБ": 13000, "128 ГБ": 15000, "256 ГБ": 17000 },
+        "12p": { "128 ГБ": 18500, "256 ГБ": 21500, "512 ГБ": 24500 },
+        "12pm": { "128 ГБ": 23000, "256 ГБ": 26000, "512 ГБ": 29500 },
+        "11": { "64 ГБ": 9000, "128 ГБ": 10500, "256 ГБ": 12200 },
+        "11p": { "64 ГБ": 11200, "256 ГБ": 13300, "512 ГБ": 15500 },
+        "11pm": { "64 ГБ": 13700, "256 ГБ": 16500, "512 ГБ": 19000 },
+        "se2020": { "64 ГБ": 5100, "128 ГБ": 6100, "256 ГБ": 7200 },
+        "se2022": { "64 ГБ": 7900, "128 ГБ": 9200, "256 ГБ": 11000 },
+        "x": { "64 ГБ": 5500, "256 ГБ": 6800 },
+        "xr": { "64 ГБ": 6100, "128 ГБ": 7100 },
+        "xs": { "64 ГБ": 6100, "256 ГБ": 7200 },
+        "xsm": { "64 ГБ": 7600, "256 ГБ": 9200 },
+        "8p": { "64 ГБ": 6000, "128 ГБ": 7000, "256 ГБ": 8000 },
+        "8": { "64 ГБ": 5500, "128 ГБ": 6500, "256 ГБ": 7600 },
+        "7p": { "32 ГБ": 3500, "128 ГБ": 4000, "256 ГБ": 4500 },
+        "7": { "32 ГБ": 3000, "128 ГБ": 3500, "256 ГБ": 4000 },
+        "6sp": { "16 ГБ": 2500, "64 ГБ": 3000, "128 ГБ": 3500 },
+        "6s": { "16 ГБ": 2200, "64 ГБ": 2600, "128 ГБ": 3000 },
+        "6p": { "16 ГБ": 2000, "64 ГБ": 2300, "128 ГБ": 2700 },
+        "6": { "16 ГБ": 1800, "64 ГБ": 2100, "128 ГБ": 2400 },
+        "5s": { "16 ГБ": 1500, "32 ГБ": 1800, "64 ГБ": 2000 },
+        "5": { "16 ГБ": 2000, "32 ГБ": 2300, "64 ГБ": 2500 },
+        "4": { "8 ГБ": 1800, "16 ГБ": 2000, "32 ГБ": 2200 },
+        "3g": { "8 ГБ": 2500, "16 ГБ": 3000 },
+        "2g": { "4 ГБ": 25000, "8 ГБ": 30000, "16 ГБ": 35000 }
+    };
+
+    function onModelChange() {
+        const val = selectedModelKey;
+        const memSelect = document.getElementById('device-memory');
+        if (!val) return;
+        memSelect.style.display = 'block';
+        memSelect.innerHTML = `<option value="" disabled selected>${translations[currentLang].selectStoragePlaceholder}</option>`;
+        Object.keys(pricesDB[val]).forEach(m => {
+            let opt = document.createElement('option');
+            opt.value = m;
+            opt.innerText = m;
+            memSelect.appendChild(opt);
+        });
+        checkCompletion();
+    }
+
+    function updateBiometryUI() {
+        const container = document.getElementById('biometry-container');
+        const ttGroup = document.getElementById('truetone-group');
+        const t = translations[currentLang];
+        let html = '';
+        
+        const touchIdModels = ['8', '8p', 'se2020', 'se2022', '7', '7p', '6s', '6sp', '6', '6p', '5s'];
+        const noBioModels = ['5', '4', '3g', '2g'];
+
+        if (touchIdModels.includes(selectedModelKey)) {
+            html = `
+                <div class="section-label">${t.touchIdLabel}</div>
+                <div class="toggle-group req-group">
+                    <label><input type="radio" name="biometry" value="yes" onchange="checkCompletion()"> <span>${t.touchIdOk}</span></label>
+                    <label><input type="radio" name="biometry" value="no" data-penalty="15" onchange="checkCompletion()"> <span>${t.notWorking}</span></label>
+                </div>
+            `;
+            ttGroup.style.display = (['8', '8p', 'se2020', 'se2022'].includes(selectedModelKey)) ? 'flex' : 'none';
+        } else if (noBioModels.includes(selectedModelKey)) {
+            html = `<div style="font-size: 13px; color: var(--muted);">${t.bioNotSupported}</div>`;
+            ttGroup.style.display = 'none';
+        } else {
+            html = `
+                <div class="section-label">${t.faceIdLabel}</div>
+                <div class="toggle-group req-group">
+                    <label><input type="radio" name="biometry" value="yes" onchange="checkCompletion()"> <span>${t.faceIdOk}</span></label>
+                    <label><input type="radio" name="biometry" value="no" data-penalty="20" onchange="checkCompletion()"> <span>${t.faceIdNotWorking}</span></label>
+                </div>
+            `;
+            ttGroup.style.display = 'flex';
+        }
+        container.innerHTML = html;
+    }
+
+    function updateNfcUI() {
+        const nfcCard = document.getElementById('nfc-card');
+        const noNfcModels = ['4', '3g', '2g', '5', '5s'];
+        if (noNfcModels.includes(selectedModelKey)) {
+            nfcCard.style.display = 'none';
+        } else {
+            nfcCard.style.display = 'block';
+        }
+    }
+
+    function toggleSub(id, show) {
+        const elem = document.getElementById(id);
+        if (show) elem.classList.add('active');
+        else {
+            elem.classList.remove('active');
+            elem.querySelectorAll('input').forEach(i => i.checked = false);
+        }
+    }
+
+    function checkCompletion() {
+        const cards = document.querySelectorAll('.card');
+        let completedCount = 0;
+        let totalCount = 0;
+
+        cards.forEach(card => {
+            if (card.style.display === 'none') return;
+            totalCount++;
+            
+            let isCardValid = true;
+            if (card.id === 'card-model') {
+                const memSelect = document.getElementById('device-memory');
+                if (!selectedModelKey || !memSelect.value) isCardValid = false;
+            } else {
+                const reqGroups = card.querySelectorAll('.req-group');
+                reqGroups.forEach(group => {
+                    if (group.style.display === 'none') return;
+                    const checked = group.querySelector('input:checked');
+                    if (!checked) isCardValid = false;
+                });
+            }
+
+            if (isCardValid) {
+                completedCount++;
+                if (hasAttemptedSubmit) card.classList.remove('invalid');
+            }
+        });
+
+        const progressStr = translations[currentLang].progressText;
+        document.getElementById('progress-text').innerText = progressStr.replace('{completed}', completedCount).replace('{total}', totalCount);
+        const pct = Math.round((completedCount / totalCount) * 100);
+        document.getElementById('progress-fill').style.width = pct + '%';
+
+        return completedCount === totalCount;
+    }
+
+    function handleFinishClick() {
+        hasAttemptedSubmit = true;
+        const cards = document.querySelectorAll('.card');
+        let isValid = true;
+        let firstInvalid = null;
+
+        cards.forEach(card => {
+            if (card.style.display === 'none') return;
+            let cardOk = true;
+
+            if (card.id === 'card-model') {
+                const memSelect = document.getElementById('device-memory');
+                if (!selectedModelKey || !memSelect.value) cardOk = false;
+            } else {
+                const reqGroups = card.querySelectorAll('.req-group');
+                reqGroups.forEach(group => {
+                    if (group.style.display === 'none') return;
+                    if (!group.querySelector('input:checked')) cardOk = false;
+                });
+            }
+
+            if (!cardOk) {
+                isValid = false;
+                card.classList.add('invalid');
+                if (!firstInvalid) firstInvalid = card;
+            } else {
+                card.classList.remove('invalid');
+            }
+        });
+
+        if (!isValid) {
+            if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
+        calculateResult();
+    }
+
+    function calculateResult() {
+        const memSelect = document.getElementById('device-memory').value;
+        let basePrice = pricesDB[selectedModelKey][memSelect];
+        
+        let totalPenalty = 0;
+        let totalBonus = 0;
+        let detailsList = [];
+
+        document.querySelectorAll('input:checked').forEach(input => {
+            if (input.closest('.sub-menu') && !input.closest('.sub-menu').classList.contains('active')) return;
+            
+            if (input.dataset.penalty) {
+                totalPenalty += parseFloat(input.dataset.penalty);
+                const labelSpan = input.parentElement.querySelector('span');
+                const labelText = labelSpan ? labelSpan.innerText.trim() : input.parentElement.innerText.trim();
+                detailsList.push(`- ${labelText}`);
+            }
+            if (input.dataset.bonus) {
+                totalBonus += parseFloat(input.dataset.bonus);
+                const labelSpan = input.parentElement.querySelector('span');
+                const labelText = labelSpan ? labelSpan.innerText.trim() : input.parentElement.innerText.trim();
+                detailsList.push(`+ ${labelText}`);
+            }
+        });
+
+        let finalScore = Math.max(10, 100 - totalPenalty + totalBonus);
+        if (finalScore > 100) finalScore = 100;
+
+        let calculatedPrice = Math.round(basePrice * (finalScore / 100));
+        baseCalculatedPriceRUB = calculatedPrice;
+
+        lastDetailsList = detailsList;
+        lastBasePrice = basePrice;
+        lastFinalScore = finalScore;
+
+        document.getElementById('result-model').innerText = `${selectedModelName} ${memSelect}`;
+        
+        const roundedScore = Math.round(finalScore);
+        document.getElementById('score-text').innerText = `${roundedScore}%`;
+        
+        const circleEl = document.getElementById('score-circle');
+        let colorVar = "var(--green)";
+        if (roundedScore < 60) {
+            colorVar = "var(--red)";
+        } else if (roundedScore < 80) {
+            colorVar = "var(--yellow)";
+        }
+        circleEl.style.background = `conic-gradient(${colorVar} 0deg ${roundedScore * 3.6}deg, var(--gray) ${roundedScore * 3.6}deg 360deg)`;
+
+        renderPriceCard(calculatedPrice, detailsList);
+        buildDetailsModalHtml(basePrice, detailsList, finalScore);
+
+        document.getElementById('result-screen').style.display = 'flex';
+    }
+
+    function buildDetailsModalHtml(basePrice, detailsList, finalScore) {
+        const t = translations[currentLang];
+        const memSelect = document.getElementById('device-memory') ? document.getElementById('device-memory').value : '';
+        
+        let detailsHtml = `<h3>${t.detailsHeader}</h3><br>`;
+        detailsHtml += `<b>${t.baseModelLabel}</b> ${selectedModelName} (${memSelect})<br>`;
+        detailsHtml += `<b>${t.basePriceLabel}</b> ${basePrice.toLocaleString()} ₽<br><br>`;
+        if (detailsList.length > 0) {
+            detailsHtml += `<b>${t.detectedFactorsLabel}</b><br>${detailsList.join('<br>')}<br><br>`;
+        } else {
+            detailsHtml += `<b>${t.detectedFactorsLabel}</b> ${t.noDefectsText}<br><br>`;
+        }
+        detailsHtml += `<b>${t.finalIndexLabel}</b> ${Math.round(finalScore)}%`;
+        document.getElementById('details-content-box').innerHTML = detailsHtml;
+    }
+
+    function renderPriceCard(fairPriceRUB, detailsList) {
+        const container = document.getElementById('price-card-container');
+        const t = translations[currentLang];
+        
+        if (userMode === 'sell') {
+            let recPrice = Math.round(fairPriceRUB * 1.10);
+            let minPrice = fairPriceRUB;
+
+            recPrice = Math.ceil(recPrice / 100) * 100;
+            minPrice = Math.floor(minPrice / 100) * 100;
+
+            container.innerHTML = `
+                <div class="price-row">
+                    <span class="price-badge badge-green">${t.modeSellBadge}</span>
+                    <div class="price-explanation">${t.recPriceLabel}</div>
+                    <div class="price-val">${recPrice.toLocaleString()} ₽</div>
+                </div>
+                <div class="price-row">
+                    <span class="price-badge badge-red">${t.minPriceBadge}</span>
+                    <div class="price-explanation">${t.minPriceLabel}</div>
+                    <div class="price-val" style="color: var(--red);">${minPrice.toLocaleString()} ₽</div>
+                </div>
+            `;
+        } else {
+            let buyPrice = Math.round(fairPriceRUB * 0.88);
+            buyPrice = Math.floor(buyPrice / 100) * 100;
+
+            let defectReasonText = detailsList.length > 0 ? t.buyDefectReason : t.buyNoDefectReason;
+
+            container.innerHTML = `
+                <div class="price-row">
+                    <span class="price-badge badge-blue">${t.modeBuyBadge}</span>
+                    <div class="price-explanation">${t.buyPriceLabel}</div>
+                    <div class="price-val">${buyPrice.toLocaleString()} ₽</div>
+                </div>
+                <div class="price-row" style="margin-top: 10px;">
+                    <div class="price-explanation" style="font-style: italic;">💡 ${defectReasonText}</div>
+                </div>
+            `;
+        }
+    }
+</script>
+
+</body>
+</html>
